@@ -1,0 +1,4 @@
+# The resume builder's script and stylesheet are deliberately written in a
+# dense one-statement-per-line style; Prettier would expand them several-fold.
+app/resume-builder/builder.js
+app/resume-builder/builder.css
