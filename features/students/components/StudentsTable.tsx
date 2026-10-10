@@ -33,7 +33,9 @@ import type { Campus } from "@/features/school/api/school";
 import {
   ALL_STATUSES,
   LicenseStatus,
+  normalizeProgram,
   PROGRAMS,
+  programLabel,
   STATUS_META,
   Student,
 } from "../students.definitions";
@@ -85,7 +87,7 @@ export function StudentsTable({
     const rows = students.filter((s) => {
       if (q && !s.name.toLowerCase().includes(q) && !s.email.toLowerCase().includes(q)) return false;
       if (campus !== ALL && s.campusId !== campus) return false;
-      if (program !== ALL && !s.program.toLowerCase().includes(program.toLowerCase())) return false;
+      if (program !== ALL && normalizeProgram(s.program) !== program) return false;
       if (status !== ALL && s.status !== status) return false;
       const g = Date.parse(s.graduationDate);
       if (from !== null && (Number.isNaN(g) || g < from)) return false;
@@ -162,7 +164,7 @@ export function StudentsTable({
           </FilterSelect>
         )}
         <FilterSelect value={program} onChange={setProgram} placeholder="All programs">
-          {PROGRAMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          {PROGRAMS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
         </FilterSelect>
         <FilterSelect value={status} onChange={setStatus} placeholder="All statuses">
           {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_META[s].label}</SelectItem>)}
@@ -217,7 +219,7 @@ export function StudentsTable({
                 </TableCell>
                 <TableCell>{s.email}</TableCell>
                 <TableCell>{campusName.get(s.campusId) ?? "—"}</TableCell>
-                <TableCell>{s.program || "—"}</TableCell>
+                <TableCell>{programLabel(s.program)}</TableCell>
                 <TableCell>{fmtDate(s.graduationDate)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
