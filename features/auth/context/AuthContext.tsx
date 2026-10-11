@@ -1,63 +1,104 @@
 "use client";
 
-import React, { createContext, useCallback, useContext } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchCurrentUser } from "../api/fetch-current-user";
-import { PORTAL_ROLES, UserData } from "../auth.definitions";
-import { storage } from "@/shared/libs/storage";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/shared/libs/supabase";
+import type { Membership, MemberRole } from "../auth.definitions";
 
 interface AuthState {
-  user: UserData | null;
+  session: Session | null;
+  /** The signed-in person's school. null = signed in but not school staff. */
+  membership: Membership | null;
   loading: boolean;
-  refetch: () => Promise<UserData | null>;
-  logout: () => void;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
-  user: null,
+  session: null,
+  membership: null,
   loading: true,
-  refetch: async () => null,
-  logout: () => {},
+  signIn: async () => ({ ok: false }),
+  logout: async () => {},
 });
 
+async function loadMembership(userId: string): Promise<Membership | null> {
+  // RLS only returns rows for schools this user belongs to.
+  const { data, error } = await supabase
+    .from("school_members")
+    .select("school_id, role, full_name, schools(name)")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const school = data.schools as { name: string } | { name: string }[] | null;
+  const schoolName = Array.isArray(school) ? school[0]?.name : school?.name;
+  return {
+    schoolId: data.school_id,
+    schoolName: schoolName ?? "",
+    role: data.role as MemberRole,
+    fullName: data.full_name,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const queryClient = useQueryClient();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [session, setSession] = useState<Session | null>(null);
+  const [membership, setMembership] = useState<Membership | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["portal-user"],
-    queryFn: fetchCurrentUser,
-    enabled: typeof window !== "undefined" && !!storage.getToken(),
-    retry: false,
-  });
+  useEffect(() => {
+    let active = true;
+    const apply = async (s: Session | null) => {
+      const m = s ? await loadMembership(s.user.id) : null;
+      if (!active) return;
+      setSession(s);
+      setMembership(m);
+      setLoading(false);
+    };
+    supabase.auth.getSession().then(({ data }) => apply(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      // Defer: Supabase forbids awaiting other Supabase calls inside this callback.
+      setTimeout(() => apply(s), 0);
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
-  // Only school staff may use this portal. Any other account type
-  // (candidate, employer, ...) is treated as signed out.
-  const user =
-    data && PORTAL_ROLES.includes(String(data.role).toUpperCase())
-      ? data
-      : null;
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.session) {
+      return { ok: false, message: "Incorrect email or password." };
+    }
+    const m = await loadMembership(data.session.user.id);
+    if (!m) {
+      // A valid account that isn't school staff gets no session here.
+      await supabase.auth.signOut();
+      return { ok: false, message: "This portal is for partner school staff only." };
+    }
+    setSession(data.session);
+    setMembership(m);
+    return { ok: true };
+  }, []);
 
-  const logout = useCallback(() => {
-    storage.removeToken();
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     queryClient.clear();
+    setSession(null);
+    setMembership(null);
     router.replace("/sign-in");
   }, [queryClient, router]);
 
-  const refetchUser = useCallback(async () => {
-    const res = await refetch();
-    const u = res.data ?? null;
-    return u && PORTAL_ROLES.includes(String(u.role).toUpperCase()) ? u : null;
-  }, [refetch]);
-
   return (
-    <AuthContext.Provider
-      value={{ user, loading: isLoading, refetch: refetchUser, logout }}
-    >
+    <AuthContext.Provider value={{ session, membership, loading, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useUser = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext);

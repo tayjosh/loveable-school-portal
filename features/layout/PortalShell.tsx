@@ -15,8 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/shared/ui-components/controls/button";
-import { useUser } from "@/features/auth/context/AuthContext";
-import { Roles } from "@/features/auth/auth.definitions";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -30,15 +29,15 @@ const NAV = [
 ];
 
 export function PortalShell({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useUser();
+  const { membership, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/sign-in");
-  }, [loading, user, router]);
+    if (!loading && !membership) router.replace("/sign-in");
+  }, [loading, membership, router]);
 
-  if (loading || !user) {
+  if (loading || !membership) {
     return (
       <div className="flex min-h-screen items-center justify-center text-slate-500">
         Loading…
@@ -46,14 +45,15 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const isSchoolAdmin = String(user.role).toUpperCase() === Roles.SCHOOL_ADMIN;
-  const items = NAV.filter((n) => !n.schoolAdminOnly || isSchoolAdmin);
+  const isMainAdmin = membership.role === "main_admin";
+  const items = NAV.filter((n) => !n.schoolAdminOnly || isMainAdmin);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-white md:flex">
         <div className="px-5 py-5 text-lg font-semibold text-[#1E3A5F]">
           AviHire School Portal
+          <div className="text-xs font-normal text-slate-500">{membership.schoolName}</div>
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {items.map(({ href, label, icon: Icon }) => {
@@ -76,7 +76,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="border-t p-3">
           <p className="truncate px-2 pb-2 text-xs text-slate-500">
-            {user.full_name || user.fullName || user.email}
+            {membership.fullName}
           </p>
           <Button variant="ghost" className="w-full justify-start" onClick={logout}>
             <LogOut className="mr-2 h-4 w-4" /> Sign out

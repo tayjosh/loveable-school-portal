@@ -1,15 +1,15 @@
 "use client";
 
-import { useUser } from "@/features/auth/context/AuthContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const { membership } = useAuth();
   return (
     <div className="space-y-2">
       <h1 className="text-2xl font-semibold text-[#1E3A5F]">
-        Welcome back, {user?.full_name || user?.fullName || "Admin"}
+        Welcome back, {membership?.fullName}
       </h1>
-      <p className="text-slate-500">Dashboard stats are coming in the next step.</p>
+      <p className="text-slate-500">Dashboard stats are coming in a later step.</p>
     </div>
   );
 }

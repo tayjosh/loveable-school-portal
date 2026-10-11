@@ -23,12 +23,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Proxy API requests to the AviHire backend (same pattern as the main site)
-  async rewrites() {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiBase) return [];
-    return [{ source: "/v1/:path*", destination: `${apiBase}/v1/:path*` }];
-  },
 };
 
 export default nextConfig;

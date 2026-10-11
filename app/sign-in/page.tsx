@@ -20,23 +20,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shared/ui-components/controls/form";
-import { useLogin } from "@/features/auth/hooks/useLogin";
-import { useUser } from "@/features/auth/context/AuthContext";
+import { useAuth } from "@/features/auth/context/AuthContext";
 import {
   signInSchema,
   type SignInFormValues,
 } from "@/features/auth/components/SignInValidationSchema";
-import { storage } from "@/shared/libs/storage";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { login, isLoading } = useLogin();
-  const { user, loading, refetch } = useUser();
-  const [checking, setChecking] = useState(false);
+  const { membership, loading, signIn } = useAuth();
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/dashboard");
-  }, [user, loading, router]);
+    if (!loading && membership) router.replace("/dashboard");
+  }, [membership, loading, router]);
 
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -44,24 +41,15 @@ export default function SignInPage() {
   });
 
   const onSubmit = async (values: SignInFormValues) => {
-    const result = await login(values);
-    if (!result.success) {
-      toast.error("Sign in failed", { description: result.message });
-      return;
-    }
-    setChecking(true);
-    const signedIn = await refetch();
-    if (!signedIn) {
-      // Valid AviHire account, but not a school admin: do not keep the session.
-      storage.removeToken();
-      setChecking(false);
-      toast.error("This portal is for partner school staff only.");
+    setBusy(true);
+    const res = await signIn(values.email, values.password);
+    setBusy(false);
+    if (!res.ok) {
+      toast.error("Sign in failed", { description: res.message });
       return;
     }
     router.replace("/dashboard");
   };
-
-  const busy = isLoading || checking;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">

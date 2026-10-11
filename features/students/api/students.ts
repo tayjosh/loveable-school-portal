@@ -1,43 +1,46 @@
-import axiosInstance from "@/shared/libs/axiosConfig";
+import { supabase } from "@/shared/libs/supabase";
 import { LicenseStatus, Student } from "../students.definitions";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const normalizeStudent = (u: any): Student => {
-  const first = u.first_name ?? u.firstName ?? "";
-  const last = u.last_name ?? u.lastName ?? "";
-  const status = String(
-    u.school_certificate_status ?? u.schoolCertificateStatus ?? "UNLICENSED",
-  ).toUpperCase() as LicenseStatus;
-  return {
-    id: String(u.id ?? u.user_id ?? ""),
-    name: u.name ?? u.full_name ?? (`${first} ${last}`.trim() || u.email || ""),
-    email: u.email ?? "",
-    campusId: String(u.campus_id ?? u.campusId ?? ""),
-    program: u.profession ?? u.program ?? u.certificate_type ?? u.certificateType ?? "",
-    graduationDate:
-      u.expected_graduation_date ?? u.expectedGraduation ?? u.expectedGraduationDate ?? "",
-    status,
-    applications: Number(u.applications_count ?? u.applicationsCount ?? 0),
-    createdAt: u.created_at ?? u.createdAt ?? u.enrolled_at ?? "",
-  };
+interface Row {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  campus_id: string | null;
+  program: string;
+  expected_graduation_date: string | null;
+  license_status: LicenseStatus;
+  enrollment_status: string;
+}
+
+// The database (row-level security) only returns this staff member's school.
+export const fetchStudents = async (): Promise<Student[]> => {
+  const { data, error } = await supabase
+    .from("students")
+    .select(
+      "id, first_name, last_name, email, campus_id, program, expected_graduation_date, license_status, enrollment_status",
+    )
+    .order("last_name")
+    .limit(5000)
+    .returns<Row[]>();
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    name: `${r.first_name} ${r.last_name}`.trim(),
+    email: r.email,
+    campusId: r.campus_id,
+    program: r.program,
+    graduationDate: r.expected_graduation_date,
+    status: r.license_status,
+    enrollmentStatus: r.enrollment_status,
+  }));
 };
 
-// The backend scopes results to the signed-in admin (campus admins only get
-// their campus), so the portal never has to trust a client-side filter for
-// access control. Filtering below is purely for convenience.
-export const fetchSchoolStudents = async (schoolId: string): Promise<Student[]> => {
-  const res = await axiosInstance.get(
-    `/v1/schools/${encodeURIComponent(schoolId)}/students?page=1&limit=1000`,
-  );
-  const payload = res.data;
-  const rows = payload?.data ?? payload?.rows ?? payload?.results ?? [];
-  return rows.map(normalizeStudent);
-};
-
-export const updateStudentStatus = async (studentId: string, status: LicenseStatus) => {
-  const res = await axiosInstance.patch(
-    `/v1/users/${encodeURIComponent(studentId)}`,
-    { schoolCertificateStatus: status },
-  );
-  return res.data;
+// Each change is also recorded automatically in license_events (who and when).
+export const updateStudentStatus = async (id: string, status: LicenseStatus) => {
+  const { error } = await supabase
+    .from("students")
+    .update({ license_status: status })
+    .eq("id", id);
+  if (error) throw error;
 };

@@ -33,14 +33,13 @@ import type { Campus } from "@/features/school/api/school";
 import {
   ALL_STATUSES,
   LicenseStatus,
-  normalizeProgram,
   PROGRAMS,
   programLabel,
   STATUS_META,
   Student,
 } from "../students.definitions";
 
-type SortKey = "name" | "email" | "campus" | "program" | "graduationDate" | "status" | "applications";
+type SortKey = "name" | "email" | "campus" | "program" | "graduationDate" | "status";
 const PAGE_SIZE = 15;
 const ALL = "all";
 
@@ -53,8 +52,8 @@ interface Props {
   onSelectedChange: (next: Set<string>) => void;
 }
 
-const fmtDate = (d: string) => {
-  const t = Date.parse(d);
+const fmtDate = (d: string | null) => {
+  const t = d ? Date.parse(d) : NaN;
   return Number.isNaN(t) ? "—" : new Date(t).toLocaleDateString();
 };
 
@@ -86,20 +85,19 @@ export function StudentsTable({
     const to = gradTo ? Date.parse(gradTo) : null;
     const rows = students.filter((s) => {
       if (q && !s.name.toLowerCase().includes(q) && !s.email.toLowerCase().includes(q)) return false;
-      if (campus !== ALL && s.campusId !== campus) return false;
-      if (program !== ALL && normalizeProgram(s.program) !== program) return false;
+      if (campus !== ALL && (s.campusId ?? "") !== campus) return false;
+      if (program !== ALL && s.program !== program) return false;
       if (status !== ALL && s.status !== status) return false;
-      const g = Date.parse(s.graduationDate);
+      const g = s.graduationDate ? Date.parse(s.graduationDate) : NaN;
       if (from !== null && (Number.isNaN(g) || g < from)) return false;
       if (to !== null && (Number.isNaN(g) || g > to)) return false;
       return true;
     });
     const val = (s: Student): string | number => {
       switch (sort.key) {
-        case "campus": return campusName.get(s.campusId) ?? "";
-        case "graduationDate": return Date.parse(s.graduationDate) || 0;
-        case "applications": return s.applications;
-        default: return String(s[sort.key]).toLowerCase();
+        case "campus": return campusName.get(s.campusId ?? "") ?? "";
+        case "graduationDate": return (s.graduationDate ? Date.parse(s.graduationDate) : 0) || 0;
+        default: return String(s[sort.key] ?? "").toLowerCase();
       }
     };
     return [...rows].sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir);
@@ -190,19 +188,18 @@ export function StudentsTable({
               <SortHead k="program">Program</SortHead>
               <SortHead k="graduationDate">Graduation</SortHead>
               <SortHead k="status">Status</SortHead>
-              <SortHead k="applications">Applications</SortHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading &&
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={8}><Skeleton className="h-6 w-full" /></TableCell>
+                  <TableCell colSpan={7}><Skeleton className="h-6 w-full" /></TableCell>
                 </TableRow>
               ))}
             {!isLoading && pageRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-slate-500">
+                <TableCell colSpan={7} className="py-10 text-center text-slate-500">
                   No students match your filters.
                 </TableCell>
               </TableRow>
@@ -218,7 +215,7 @@ export function StudentsTable({
                   </Link>
                 </TableCell>
                 <TableCell>{s.email}</TableCell>
-                <TableCell>{campusName.get(s.campusId) ?? "—"}</TableCell>
+                <TableCell>{campusName.get(s.campusId ?? "") ?? "—"}</TableCell>
                 <TableCell>{programLabel(s.program)}</TableCell>
                 <TableCell>{fmtDate(s.graduationDate)}</TableCell>
                 <TableCell>
@@ -239,7 +236,6 @@ export function StudentsTable({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-                <TableCell>{s.applications}</TableCell>
               </TableRow>
             ))}
           </TableBody>

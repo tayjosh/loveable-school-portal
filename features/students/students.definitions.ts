@@ -24,30 +24,16 @@ export const PROGRAMS = [
   { value: "DISPATCHER", label: "Dispatcher" },
 ] as const;
 
-// Backend values vary ("AP_MECHANIC", "A&P Mechanic", "A&P"), so compare on a
-// normalised key rather than the raw text.
-export const normalizeProgram = (raw: string): string => {
-  const k = (raw || "").toUpperCase().replace(/[^A-Z&]/g, "");
-  if (k === "APMECHANIC" || k === "A&PMECHANIC" || k === "A&P" || k === "MAINTENANCE") return "AP_MECHANIC";
-  return k;
-};
-
-export const programLabel = (raw: string): string =>
-  PROGRAMS.find((p) => p.value === normalizeProgram(raw))?.label ?? (raw || "—");
+export const programLabel = (code: string): string =>
+  PROGRAMS.find((p) => p.value === code)?.label ?? (code || "—");
 
 export interface Student {
   id: string;
   name: string;
   email: string;
-  campusId: string;
+  campusId: string | null;
   program: string;
-  graduationDate: string;
+  graduationDate: string | null;
   status: LicenseStatus;
-  applications: number;
-  createdAt: string;
-}
-
-export interface StudentsPage {
-  students: Student[];
-  total: number;
+  enrollmentStatus: string;
 }
