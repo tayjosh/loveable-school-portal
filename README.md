@@ -15,6 +15,19 @@ shadcn/Radix, React Query, react-hook-form + zod. Added: `@supabase/supabase-js`
    (never the secret/service_role key).
 3. `npm install && npm run dev` (http://localhost:3001)
 
+## Demo mode (no server needed)
+
+    NEXT_PUBLIC_DEMO_MODE=true npm run dev
+
+Runs on sample data with any email/password. Nothing is saved. Never enable
+in production.
+
+## Importing students
+
+Students > Import CSV. Columns: First Name, Last Name, Email, Program (required);
+Phone, Campus, Start Date, Graduation Date (optional). Dates: YYYY-MM-DD or
+MM/DD/YYYY. Existing emails are skipped, never overwritten. Max 2,000 rows / 2 MB.
+
 ## Security model
 
 Every table has row-level security: a signed-in staff member can only read or

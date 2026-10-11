@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/shared/ui-components/controls/button";
+import { isDemo } from "@/shared/libs/demo";
 import { useAuth } from "@/features/auth/context/AuthContext";
 
 const NAV = [
@@ -83,7 +84,14 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
       </aside>
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-6">
+        {isDemo && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Demo mode: sample data only. Changes are not saved and reset when the page reloads.
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

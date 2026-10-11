@@ -37,3 +37,19 @@ export interface Student {
   status: LicenseStatus;
   enrollmentStatus: string;
 }
+
+export interface NewStudent {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  program: string;
+  campusId: string | null;
+  startDate: string | null;
+  graduationDate: string | null;
+}
+
+export interface CreateResult {
+  inserted: number;
+  skipped: number; // already enrolled (same email)
+}

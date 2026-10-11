@@ -20,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shared/ui-components/controls/form";
+import { isDemo } from "@/shared/libs/demo";
 import { useAuth } from "@/features/auth/context/AuthContext";
 import {
   signInSchema,
@@ -61,6 +62,11 @@ export default function SignInPage() {
             <p className="text-sm text-slate-500">
               Sign in with your partner school admin account.
             </p>
+            {isDemo && (
+              <p className="rounded bg-amber-50 p-2 text-xs text-amber-800">
+                Demo mode: enter any email and an 8+ character password.
+              </p>
+            )}
           </div>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

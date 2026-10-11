@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/shared/libs/supabase";
+import { isDemo } from "@/shared/libs/demo";
+import { DEMO_MEMBERSHIP } from "@/features/demo/demoStore";
 import type { Membership, MemberRole } from "../auth.definitions";
 
 interface AuthState {
   session: Session | null;
   /** The signed-in person's school. null = signed in but not school staff. */
   membership: Membership | null;
+  userId?: string;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
@@ -51,6 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isDemo) {
+      setMembership(DEMO_MEMBERSHIP);
+      setLoading(false);
+      return;
+    }
     let active = true;
     const apply = async (s: Session | null) => {
       const m = s ? await loadMembership(s.user.id) : null;
@@ -71,6 +79,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (isDemo) {
+      setMembership(DEMO_MEMBERSHIP);
+      return { ok: true };
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error || !data.session) {
       return { ok: false, message: "Incorrect email or password." };
@@ -87,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    if (!isDemo) await supabase.auth.signOut();
     queryClient.clear();
     setSession(null);
     setMembership(null);
@@ -95,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient, router]);
 
   return (
-    <AuthContext.Provider value={{ session, membership, loading, signIn, logout }}>
+    <AuthContext.Provider value={{ session, membership, userId: session?.user.id, loading, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );

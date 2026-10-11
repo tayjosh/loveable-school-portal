@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { fetchStudents, updateStudentStatus } from "../api/students";
-import { LicenseStatus, STATUS_META, Student } from "../students.definitions";
+import { createStudents, fetchStudents, recordImportBatch, updateStudentStatus } from "../api/students";
+import { LicenseStatus, NewStudent, STATUS_META, Student } from "../students.definitions";
 
 export const useStudents = (schoolId?: string) =>
   useQuery({
@@ -32,5 +32,26 @@ export const useUpdateStudentStatus = (schoolId?: string) => {
     onSuccess: (_d, { status }) =>
       toast.success(`Status updated to ${STATUS_META[status].label}`),
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  });
+};
+
+export const useCreateStudents = (schoolId?: string, userId?: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { rows: NewStudent[]; fileName?: string; failedRows?: number; errors?: unknown[] }) => {
+      const result = await createStudents(String(schoolId), userId, vars.rows);
+      if (vars.fileName) {
+        // Import history is best-effort; never fail the import because of it.
+        recordImportBatch(String(schoolId), userId, {
+          fileName: vars.fileName,
+          total: vars.rows.length + (vars.failedRows ?? 0),
+          imported: result.inserted,
+          failed: vars.failedRows ?? 0,
+          errors: vars.errors ?? [],
+        }).catch(() => {});
+      }
+      return result;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["students", schoolId] }),
   });
 };
